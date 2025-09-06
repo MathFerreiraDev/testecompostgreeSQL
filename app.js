@@ -4,7 +4,7 @@ const http = require('http');
 const url = require('url');
 const qs = require('querystring');
 
-const DB = 'postgresql://postgres:KnORKdSwxRMHJeaFIgsopaTHmrCbszLD@hopper.proxy.rlwy.net:18352/railway';
+const DB = process.env.DATABASE_URL;
 const pool = new Pool({ connectionString: DB, ssl: { rejectUnauthorized: false } });
 
 const clients = new Map();
