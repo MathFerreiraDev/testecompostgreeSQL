@@ -1,10 +1,10 @@
-// app.js - SSE + login simples (compacto) - exibição em <h3>
+// app.js - SSE + login simples (compacto) - mostra email no <h2>
 const { Pool } = require('pg');
 const http = require('http');
 const url = require('url');
 const qs = require('querystring');
 
-const DB = process.env.DATABASE_URL || 'postgresql://postgres:KnORKdSwxRMHJeaFIgsopaTHmrCbszLD@hopper.proxy.rlwy.net:18352/railway';
+const DB = 'postgresql://postgres:KnORKdSwxRMHJeaFIgsopaTHmrCbszLD@hopper.proxy.rlwy.net:18352/railway';
 const pool = new Pool({ connectionString: DB, ssl: { rejectUnauthorized: false } });
 
 const clients = new Map();
@@ -48,15 +48,17 @@ const srv = http.createServer(async (req, res) => {
     req.on('end', async () => {
       const b = qs.parse(body);
       try {
-        const r = await pool.query('SELECT id FROM usuarios WHERE email=$1 AND senha=$2 LIMIT 1', [b.email, b.senha]);
+        // pegamos id E email aqui
+        const r = await pool.query('SELECT id, email FROM usuarios WHERE email=$1 AND senha=$2 LIMIT 1', [b.email, b.senha]);
         if (!r.rows[0]) return sendHtml(res, '<p>Credenciais inválidas. <a href="/">Voltar</a></p>');
         const uid = r.rows[0].id;
+        const userEmail = r.rows[0].email;
         const { rows } = await pool.query('SELECT * FROM reservatorios WHERE usuario_id=$1 ORDER BY id DESC LIMIT 1', [uid]);
         const last = rows[0] || null;
 
         return sendHtml(res, `<!doctype html><meta charset=utf-8><title>Painel</title>
           <style>body{font-family:Arial;padding:20px;max-width:720px;margin:auto} .box{background:#f7f7f7;padding:12px;border-radius:6px}</style>
-          <h2>Bem-vindo — usuário ${uid}</h2>
+          <h2 id="user">Bem-vindo</h2>
           <div class="box">
             <div>ÚLTIMO REGISTRO:</div>
             <h3 id="nivel">Nível: ${last ? last.nivel : '—'}</h3>
@@ -67,8 +69,14 @@ const srv = http.createServer(async (req, res) => {
 
           <script>
             const uid=${JSON.stringify(String(uid))};
-            const setField = (id, v) => document.getElementById(id).textContent = id === 'ph' ? ('pH: ' + (v===null ? '—' : v)) : 
-              (id==='nivel' ? ('Nível: ' + (v===null ? '—' : v)) : (id==='temperatura' ? ('Temperatura: ' + (v===null ? '—' : v)) : ('Cloro: ' + (v===null ? '—' : v))));
+            const userEmail=${JSON.stringify(String(userEmail))};
+            document.getElementById('user').textContent = 'Bem-vindo — ' + userEmail;
+
+            const setField = (id, v) => document.getElementById(id).textContent =
+              id === 'ph' ? ('pH: ' + (v===null ? '—' : v)) :
+              (id==='nivel' ? ('Nível: ' + (v===null ? '—' : v)) :
+              (id==='temperatura' ? ('Temperatura: ' + (v===null ? '—' : v)) : ('Cloro: ' + (v===null ? '—' : v))));
+
             const es = new EventSource('/events?uid='+uid);
             es.onmessage = e => {
               try {
