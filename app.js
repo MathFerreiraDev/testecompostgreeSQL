@@ -1,10 +1,10 @@
-// app.js - SSE + login simples (compacto) - já com seu DB como fallback
+// app.js - SSE + login simples (compacto) - exibição em <h3>
 const { Pool } = require('pg');
 const http = require('http');
 const url = require('url');
 const qs = require('querystring');
 
-const DB = 'postgresql://postgres:KnORKdSwxRMHJeaFIgsopaTHmrCbszLD@hopper.proxy.rlwy.net:18352/railway';
+const DB = process.env.DATABASE_URL || 'postgresql://postgres:KnORKdSwxRMHJeaFIgsopaTHmrCbszLD@hopper.proxy.rlwy.net:18352/railway';
 const pool = new Pool({ connectionString: DB, ssl: { rejectUnauthorized: false } });
 
 const clients = new Map();
@@ -33,12 +33,12 @@ const srv = http.createServer(async (req, res) => {
 
   if (req.method === 'GET' && p === '/') {
     return sendHtml(res, `<!doctype html><meta charset=utf-8><title>Login</title>
-      <style>body{font-family:Arial;display:flex;align-items:center;justify-content:center;height:100vh}</style>
+      <style>body{font-family:Arial;display:flex;align-items:center;justify-content:center;height:100vh}form{width:260px}</style>
       <form method="POST" action="/login">
         <h3>Login</h3>
-        <input name="email" placeholder="email" required><br><br>
-        <input name="senha" placeholder="senha" type="password" required><br><br>
-        <button>Entrar</button>
+        <input name="email" placeholder="email" required style="width:100%"><br><br>
+        <input name="senha" placeholder="senha" type="password" required style="width:100%"><br><br>
+        <button style="width:100%">Entrar</button>
       </form>`);
   }
 
@@ -53,16 +53,36 @@ const srv = http.createServer(async (req, res) => {
         const uid = r.rows[0].id;
         const { rows } = await pool.query('SELECT * FROM reservatorios WHERE usuario_id=$1 ORDER BY id DESC LIMIT 1', [uid]);
         const last = rows[0] || null;
+
         return sendHtml(res, `<!doctype html><meta charset=utf-8><title>Painel</title>
-          <style>body{font-family:Arial;padding:20px}</style>
-          <h3>Bem-vindo (user ${uid})</h3>
-          <div>ÚLTIMO REGISTRO:</div>
-          <pre id="v">${last ? JSON.stringify(last, null, 2) : 'nenhum registro'}</pre>
+          <style>body{font-family:Arial;padding:20px;max-width:720px;margin:auto} .box{background:#f7f7f7;padding:12px;border-radius:6px}</style>
+          <h2>Bem-vindo — usuário ${uid}</h2>
+          <div class="box">
+            <div>ÚLTIMO REGISTRO:</div>
+            <h3 id="nivel">Nível: ${last ? last.nivel : '—'}</h3>
+            <h3 id="temperatura">Temperatura: ${last ? last.temperatura : '—'}</h3>
+            <h3 id="ph">pH: ${last ? last.ph : '—'}</h3>
+            <h3 id="cloro">Cloro: ${last ? last.cloro : '—'}</h3>
+          </div>
+
           <script>
             const uid=${JSON.stringify(String(uid))};
+            const setField = (id, v) => document.getElementById(id).textContent = id === 'ph' ? ('pH: ' + (v===null ? '—' : v)) : 
+              (id==='nivel' ? ('Nível: ' + (v===null ? '—' : v)) : (id==='temperatura' ? ('Temperatura: ' + (v===null ? '—' : v)) : ('Cloro: ' + (v===null ? '—' : v))));
             const es = new EventSource('/events?uid='+uid);
-            es.onmessage = e => { const obj = JSON.parse(e.data); document.getElementById('v').textContent = JSON.stringify(obj, null, 2); };
+            es.onmessage = e => {
+              try {
+                const obj = JSON.parse(e.data);
+                if (!obj) { setField('nivel', null); setField('temperatura', null); setField('ph', null); setField('cloro', null); return; }
+                setField('nivel', obj.nivel);
+                setField('temperatura', obj.temperatura);
+                setField('ph', obj.ph);
+                setField('cloro', obj.cloro);
+              } catch (err) { console.error(err); }
+            };
+            es.onerror = err => console.error('EventSource erro', err);
           </script>
+
           <p><a href="/">Sair</a></p>`);
       } catch (err) { console.error(err); sendHtml(res, '<p>Erro no servidor.</p>'); }
     });
@@ -87,7 +107,8 @@ const srv = http.createServer(async (req, res) => {
 
     try {
       const { rows } = await pool.query('SELECT * FROM reservatorios WHERE usuario_id=$1 ORDER BY id DESC LIMIT 1', [uid]);
-      res.write(`data: ${JSON.stringify(rows[0] || null)}\n\n`);
+      const last = rows[0] || null;
+      res.write(`data: ${JSON.stringify(last)}\n\n`);
     } catch (e) { res.write(`data: null\n\n`); }
 
     req.on('close', () => {
