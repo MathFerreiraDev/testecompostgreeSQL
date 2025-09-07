@@ -47,10 +47,12 @@ const srv = http.createServer(async (req, res) => {
   const q = url.parse(req.url).query ? qs.parse(url.parse(req.url).query) : {};
 
   // Serve login page
-  if (req.method === 'GET' && p === '/') {
-    const f = path.join(publicDir, 'login.html');
-    return fs.existsSync(f) ? sendFile(res, f) : sendHtml(res, '<p>login page not found</p>');
-  }
+// Serve login page
+if (req.method === 'GET' && (p === '/' || p === '/login')) {
+  const f = path.join(publicDir, 'login.html');
+  return fs.existsSync(f) ? sendFile(res, f) : sendHtml(res, '<p>login page not found</p>');
+}
+
 
   // Serve panel page
   if (req.method === 'GET' && p === '/panel') {
