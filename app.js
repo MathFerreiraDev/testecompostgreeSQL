@@ -1,20 +1,18 @@
-// app.js - Express + pg + SSE + login simples + /api/last + logs
-const express = require('express');
+// app.js - SSE + login dividido em arquivos (login.html + panel.html)
 const { Pool } = require('pg');
+const http = require('http');
+const url = require('url');
+const qs = require('querystring');
+const fs = require('fs');
 const path = require('path');
-
-const app = express();
-app.use(express.json());
 
 const DB = process.env.DATABASE_URL;
 if (!DB) { console.error('DATABASE_URL missing'); process.exit(1); }
-
 const pool = new Pool({ connectionString: DB, ssl: { rejectUnauthorized: false } });
 
-// SSE clients: Map<uid, Set<res>>
 const clients = new Map();
 
-// Postgres LISTEN with logs
+// Postgres LISTEN (mantido)
 (async () => {
   const c = await pool.connect();
   await c.query('LISTEN novodado');
@@ -23,92 +21,109 @@ const clients = new Map();
     try {
       const obj = JSON.parse(m.payload);
       const uid = String(obj.usuario_id);
-      console.log(`[PG] NOTIFY for usuario_id=${uid}:`, obj);
       const set = clients.get(uid);
       if (set) {
         const data = `data: ${JSON.stringify(obj)}\n\n`;
         for (const r of set) {
           try { r.write(data); } catch(e){ /* ignore write errors */ }
         }
-      } else {
-        console.log(`[PG] no SSE clients for uid=${uid}`);
       }
     } catch (e) { console.error('notify parse', e); }
   });
-})().catch(e => { console.error(e); process.exit(1); });
+})().catch(e=>{ console.error(e); process.exit(1); });
 
-// login (texto simples)
-app.post('/api/login', async (req, res) => {
-  const { email, senha } = req.body || {};
-  if (!email || !senha) return res.status(400).json({ ok: false, error: 'missing' });
-  try {
-    const r = await pool.query('SELECT id, email FROM usuarios WHERE email=$1 AND senha=$2 LIMIT 1', [email, senha]);
-    if (!r.rows[0]) {
-      console.log(`[LOGIN] email=${email} -> invalid`);
-      return res.json({ ok: false, error: 'invalid' });
-    }
-    const uid = r.rows[0].id;
-    const userEmail = r.rows[0].email;
-    const { rows } = await pool.query('SELECT * FROM reservatorios WHERE usuario_id=$1 ORDER BY id DESC LIMIT 1', [uid]);
-    const last = rows[0] || null;
-    console.log(`[LOGIN] uid=${uid} email=${userEmail} -> success, last=${last ? JSON.stringify(last) : 'null'}`);
-    return res.json({ ok: true, uid, email: userEmail, last });
-  } catch (err) {
-    console.error('[LOGIN ERROR]', err);
-    return res.status(500).json({ ok: false, error: 'server' });
-  }
-});
-
-// NEW: endpoint para obter o último registro de um usuário
-app.get('/api/last', async (req, res) => {
-  const uid = req.query.uid;
-  if (!uid) return res.status(400).json({ ok: false, error: 'missing uid' });
-  try {
-    const { rows } = await pool.query('SELECT * FROM reservatorios WHERE usuario_id=$1 ORDER BY id DESC LIMIT 1', [uid]);
-    return res.json({ ok: true, last: rows[0] || null });
-  } catch (err) {
-    console.error('[API /api/last] error', err);
-    return res.status(500).json({ ok: false, error: 'server' });
-  }
-});
-
-// SSE endpoint
-app.get('/events', (req, res) => {
-  const uid = req.query.uid;
-  if (!uid) return res.status(400).end('uid missing');
-
-  console.log(`[SSE] connect request uid=${uid} from ${req.socket.remoteAddress}`);
-
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    Connection: 'keep-alive',
-    'Access-Control-Allow-Origin': '*'
+const publicDir = path.join(__dirname, 'public');
+const sendHtml = (res, html) => { res.writeHead(200, {'Content-Type':'text/html; charset=utf-8'}); res.end(html); };
+const sendFile = (res, filepath, type='text/html') => {
+  fs.readFile(filepath, (err, data) => {
+    if (err) { res.writeHead(500); return res.end('Server error'); }
+    res.writeHead(200, {'Content-Type': type + '; charset=utf-8'});
+    res.end(data);
   });
-  res.write('\n');
+};
 
-  const key = String(uid);
-  if (!clients.has(key)) clients.set(key, new Set());
-  clients.get(key).add(res);
-  console.log(`[SSE] client added for uid=${key}, totalClients=${clients.get(key).size}`);
+const srv = http.createServer(async (req, res) => {
+  const p = url.parse(req.url).pathname;
+  const q = url.parse(req.url).query ? qs.parse(url.parse(req.url).query) : {};
 
-  // send last
-  pool.query('SELECT * FROM reservatorios WHERE usuario_id=$1 ORDER BY id DESC LIMIT 1', [uid])
-    .then(r => res.write(`data: ${JSON.stringify(r.rows[0] || null)}\n\n`))
-    .catch(() => res.write(`data: null\n\n`));
+  // Serve login page
+  if (req.method === 'GET' && p === '/') {
+    const f = path.join(publicDir, 'login.html');
+    return fs.existsSync(f) ? sendFile(res, f) : sendHtml(res, '<p>login page not found</p>');
+  }
 
-  req.on('close', () => {
-    const s = clients.get(key);
-    if (s) { s.delete(res); if (s.size === 0) clients.delete(key); }
-    console.log(`[SSE] client closed for uid=${key}`);
-  });
-});
+  // Serve panel page
+  if (req.method === 'GET' && p === '/panel') {
+    const f = path.join(publicDir, 'panel.html');
+    return fs.existsSync(f) ? sendFile(res, f) : sendHtml(res, '<p>panel page not found</p>');
+  }
 
-// serve React build (public) and SPA fallback
-app.use(express.static(path.join(__dirname, 'public')));
-app.get(/.*/, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  // Static files (login.js, panel.js, css, etc.)
+  if (req.method === 'GET' && p.startsWith('/static/')) {
+    const f = path.join(publicDir, p.replace('/static/',''));
+    const ext = path.extname(f).toLowerCase();
+    const mime = ext === '.js' ? 'application/javascript' : (ext === '.css' ? 'text/css' : 'text/plain');
+    return fs.existsSync(f) ? sendFile(res, f, mime) : (res.writeHead(404), res.end('Not found'));
+  }
+
+  // POST /login (autentica e grava localStorage via página de redirecionamento)
+  if (req.method === 'POST' && p === '/login') {
+    let body = '';
+    req.on('data', c=> body+=c);
+    req.on('end', async () => {
+      const b = qs.parse(body);
+      try {
+        const r = await pool.query('SELECT id, email FROM usuarios WHERE email=$1 AND senha=$2 LIMIT 1', [b.email, b.senha]);
+        if (!r.rows[0]) return sendHtml(res, '<p>Credenciais inválidas. <a href="/">Voltar</a></p>');
+        const uid = r.rows[0].id;
+        const userEmail = r.rows[0].email;
+        // retorna página que grava localStorage e redireciona para /panel
+        const redirectHtml = `<!doctype html><meta charset=utf-8><title>Entrando...</title>
+          <script>
+            // salva login no navegador usando localStorage (persistente entre abas e sessões)
+            localStorage.setItem('uid', ${JSON.stringify(String(uid))});
+            localStorage.setItem('email', ${JSON.stringify(String(userEmail))});
+            // redireciona para o painel
+            location.href = '/panel';
+          </script>`;
+        return sendHtml(res, redirectHtml);
+      } catch (err) { console.error(err); sendHtml(res, '<p>Erro no servidor.</p>'); }
+    });
+    return;
+  }
+
+  // SSE endpoint (mantido)
+  if (p === '/events') {
+    const uid = q.uid;
+    if (!uid) { res.writeHead(400); return res.end('uid missing'); }
+
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+      'Access-Control-Allow-Origin': '*'
+    });
+    res.write('\n');
+
+    const key = String(uid);
+    if (!clients.has(key)) clients.set(key, new Set());
+    clients.get(key).add(res);
+
+    try {
+      const { rows } = await pool.query('SELECT * FROM reservatorios WHERE usuario_id=$1 ORDER BY id DESC LIMIT 1', [uid]);
+      const last = rows[0] || null;
+      res.write(`data: ${JSON.stringify(last)}\n\n`);
+    } catch (e) { res.write(`data: null\n\n`); }
+
+    req.on('close', () => {
+      const s = clients.get(key);
+      if (s) { s.delete(res); if (s.size === 0) clients.delete(key); }
+    });
+    return;
+  }
+
+  res.writeHead(404); res.end('Not found');
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log('Server listening on', PORT));
+srv.listen(PORT, ()=>console.log('Rodando na porta', PORT));
