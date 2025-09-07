@@ -1,10 +1,10 @@
-// panel.js - usa sessionStorage (salvo no POST /login) e EventSource
+// panel.js - usa localStorage (salvo no POST /login) e EventSource
 document.title = 'Painel';
 
 (function(){
   try {
-    const uid = sessionStorage.getItem('uid');
-    const userEmail = sessionStorage.getItem('email');
+    const uid = localStorage.getItem('uid');
+    const userEmail = localStorage.getItem('email');
     if (!uid || !userEmail) {
       location.href = '/';
       return;
@@ -21,7 +21,6 @@ document.title = 'Painel';
       else el.textContent = 'Cloro: ' + (v === null ? '—' : v);
     };
 
-    // conecta SSE (o servidor já envia o último registro ao conectar)
     const es = new EventSource('/events?uid=' + encodeURIComponent(uid));
     es.onmessage = e => {
       try {
@@ -38,12 +37,11 @@ document.title = 'Painel';
     };
 
     document.getElementById('logout').addEventListener('click', function(e){
-      // limpar armazenamento local e deixar voltar para login
-      sessionStorage.clear();
-      // allow navigation to /
+      // limpar armazenamento local e permitir navegação para login
+      localStorage.clear();
+      // navigation will proceed because <a href="/"> is used
     });
 
-    // cleanup on unload
     window.addEventListener('beforeunload', ()=> { try{ es.close() }catch{} });
   } catch(e){ console.error(e) }
 })();

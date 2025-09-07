@@ -1,11 +1,10 @@
-// login.js - apenas título e pequeno comportamento (não obrigatório)
+// login.js - verifica localStorage e redireciona se já estiver logado
 document.title = 'Login';
 
-// se quiser auto-redirecionar quando já está logado (mantém "lembrar login")
 (function(){
   try {
-    const uid = sessionStorage.getItem('uid');
-    const email = sessionStorage.getItem('email');
+    const uid = localStorage.getItem('uid');
+    const email = localStorage.getItem('email');
     if (uid && email) {
       // já logado -> ir direto pro painel
       location.href = '/panel';
