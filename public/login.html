@@ -2,18 +2,20 @@
 <html>
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Login</title>
-  <style>body{font-family:Arial;display:flex;align-items:center;justify-content:center;height:100vh}form{width:300px}</style>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <form id="loginForm">
-    <h3>Login</h3>
-    <input id="email" name="email" placeholder="email" required style="width:100%"><br><br>
-    <input id="senha" name="senha" placeholder="senha" type="password" required style="width:100%"><br><br>
-    <button style="width:100%">Entrar</button>
-    <p id="err" style="color:red;margin-top:8px"></p>
-  </form>
-
+<body class="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+  <main class="w-full max-w-sm bg-white rounded-lg shadow p-6">
+    <h1 class="text-xl font-semibold mb-4 text-center">Entrar</h1>
+    <form id="loginForm" class="space-y-3">
+      <input id="email" type="email" placeholder="email" required class="w-full p-2 border rounded" />
+      <input id="senha" type="password" placeholder="senha" required class="w-full p-2 border rounded" />
+      <button type="submit" class="w-full bg-blue-600 text-white p-2 rounded">Entrar</button>
+      <p id="err" class="text-sm text-red-600 min-h-[1rem]"></p>
+    </form>
+  </main>
   <script src="/static/login.js"></script>
 </body>
 </html>

@@ -1,29 +1,25 @@
 <!doctype html>
-<html>
+<html lang="pt-BR">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Painel</title>
-  <style>
-    body{font-family:Arial;padding:20px;max-width:720px;margin:auto}
-    .box{background:#f7f7f7;padding:12px;border-radius:6px}
-    .label{font-weight:600}
-  </style>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <header>
-    <h2>Bem-vindo — <span id="user">--</span></h2>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center p-4">
+
+  <header class="w-full max-w-xl flex justify-between items-center mb-6">
+    <h2 class="text-xl font-semibold">Bem-vindo — <span id="user" class="font-normal text-gray-700">—</span></h2>
+    <a id="logout" href="/" class="text-red-500 hover:underline">Sair</a>
   </header>
 
-  <main>
-    <div class="box">
-      <div class="label">ÚLTIMO REGISTRO:</div>
-      <h3>Nível: <span id="nivel">--</span></h3>
-      <h3>Temperatura: <span id="temperatura">--</span></h3>
-      <h3>pH: <span id="ph">--</span></h3>
-      <h3>Cloro: <span id="cloro">--</span></h3>
-    </div>
+  <main class="w-full max-w-xl bg-white shadow rounded-xl p-6">
+    <p class="text-sm text-gray-500 mb-4">ÚLTIMO REGISTRO</p>
 
-    <p><a href="/" id="logout">Sair</a></p>
+    <h3 class="text-lg mb-2">Nível: <span id="nivel" class="font-medium text-gray-800">—</span></h3>
+    <h3 class="text-lg mb-2">Temperatura: <span id="temperatura" class="font-medium text-gray-800">—</span></h3>
+    <h3 class="text-lg mb-2">pH: <span id="ph" class="font-medium text-gray-800">—</span></h3>
+    <h3 class="text-lg">Cloro: <span id="cloro" class="font-medium text-gray-800">—</span></h3>
   </main>
 
   <script src="/static/panel.js"></script>
