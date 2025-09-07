@@ -10,15 +10,15 @@ document.title = 'Painel';
       return;
     }
 
-    document.getElementById('user').textContent = 'Bem-vindo — ' + userEmail;
+    document.getElementById('user').textContent = userEmail;
 
     const setField = (id, v) => {
       const el = document.getElementById(id);
       if (!el) return;
-      if (id === 'ph') el.textContent = 'pH: ' + (v === null ? '—' : v);
-      else if (id === 'nivel') el.textContent = 'Nível: ' + (v === null ? '—' : v);
-      else if (id === 'temperatura') el.textContent = 'Temperatura: ' + (v === null ? '—' : v);
-      else el.textContent = 'Cloro: ' + (v === null ? '—' : v);
+      if (id === 'ph') el.textContent = (v === null ? '—' : v);
+      else if (id === 'nivel') el.textContent = (v === null ? '—' : v);
+      else if (id === 'temperatura') el.textContent = (v === null ? '—' : v);
+      else el.textContent = (v === null ? '—' : v);
     };
 
     const es = new EventSource('/events?uid=' + encodeURIComponent(uid));
