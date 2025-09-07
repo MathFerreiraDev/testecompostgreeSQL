@@ -1,18 +1,20 @@
-// app.js - Express + pg + SSE + bcrypt login (corrigido wildcard)
+// app.js - Express + pg + SSE + login simples (senha em texto)
 const express = require('express');
 const { Pool } = require('pg');
 const path = require('path');
-const bcrypt = require('bcrypt');
 
 const app = express();
 app.use(express.json());
 
 const DB = process.env.DATABASE_URL;
-if(!DB) { console.error('DATABASE_URL missing'); process.exit(1); }
+if (!DB) { console.error('DATABASE_URL missing'); process.exit(1); }
 
 const pool = new Pool({ connectionString: DB, ssl: { rejectUnauthorized: false } });
+
+// SSE clients map: Map<uid, Set<res>>
 const clients = new Map();
 
+// Postgres LISTEN
 (async () => {
   const c = await pool.connect();
   await c.query('LISTEN novodado');
@@ -27,22 +29,19 @@ const clients = new Map();
       }
     } catch (e) { console.error('notify parse', e); }
   });
-})().catch(e=>{ console.error(e); process.exit(1); });
+})().catch(e => { console.error(e); process.exit(1); });
 
-// login endpoint
+// login (SIMPLES: compara email+senha em texto com o DB)
 app.post('/api/login', async (req, res) => {
   const { email, senha } = req.body || {};
   if (!email || !senha) return res.status(400).json({ ok: false, error: 'missing' });
-  try {
-    const r = await pool.query('SELECT id, email, senha FROM usuarios WHERE email=$1 LIMIT 1', [email]);
-    if (!r.rows[0]) return res.json({ ok: false, error: 'invalid' });
-    const row = r.rows[0];
-    const hash = row.senha;
-    const match = await bcrypt.compare(senha, hash);
-    if (!match) return res.json({ ok: false, error: 'invalid' });
 
-    const uid = row.id;
-    const userEmail = row.email;
+  try {
+    const r = await pool.query('SELECT id, email FROM usuarios WHERE email=$1 AND senha=$2 LIMIT 1', [email, senha]);
+    if (!r.rows[0]) return res.json({ ok: false, error: 'invalid' });
+
+    const uid = r.rows[0].id;
+    const userEmail = r.rows[0].email;
     const { rows } = await pool.query('SELECT * FROM reservatorios WHERE usuario_id=$1 ORDER BY id DESC LIMIT 1', [uid]);
     const last = rows[0] || null;
     return res.json({ ok: true, uid, email: userEmail, last });
@@ -52,7 +51,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// SSE endpoint
+// SSE endpoint (filtra por uid)
 app.get('/events', (req, res) => {
   const uid = req.query.uid;
   if (!uid) return res.status(400).end('uid missing');
@@ -71,22 +70,19 @@ app.get('/events', (req, res) => {
 
   pool.query('SELECT * FROM reservatorios WHERE usuario_id=$1 ORDER BY id DESC LIMIT 1', [uid])
     .then(r => res.write(`data: ${JSON.stringify(r.rows[0] || null)}\n\n`))
-    .catch(()=> res.write(`data: null\n\n`));
+    .catch(() => res.write(`data: null\n\n`));
 
   req.on('close', () => {
     const s = clients.get(key);
-    if (s) { s.delete(res); if (s.size===0) clients.delete(key); }
+    if (s) { s.delete(res); if (s.size === 0) clients.delete(key); }
   });
 });
 
-// serve static (build React)
+// serve React build (public) and SPA fallback
 app.use(express.static(path.join(__dirname, 'public')));
-
-// CORREÇÃO: usar expressão regular para rota curinga
 app.get(/.*/, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, ()=> console.log('Server listening on', PORT));
+app.listen(PORT, () => console.log('Server listening on', PORT));
