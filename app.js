@@ -1,4 +1,4 @@
-// app.js - Express + pg + SSE + bcrypt login
+// app.js - Express + pg + SSE + bcrypt login (corrigido wildcard)
 const express = require('express');
 const { Pool } = require('pg');
 const path = require('path');
@@ -29,12 +29,11 @@ const clients = new Map();
   });
 })().catch(e=>{ console.error(e); process.exit(1); });
 
-// login agora usa bcrypt.compare
+// login endpoint
 app.post('/api/login', async (req, res) => {
   const { email, senha } = req.body || {};
   if (!email || !senha) return res.status(400).json({ ok: false, error: 'missing' });
   try {
-    // pega hash do usuário
     const r = await pool.query('SELECT id, email, senha FROM usuarios WHERE email=$1 LIMIT 1', [email]);
     if (!r.rows[0]) return res.json({ ok: false, error: 'invalid' });
     const row = r.rows[0];
@@ -53,7 +52,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// SSE endpoint (mesmo)
+// SSE endpoint
 app.get('/events', (req, res) => {
   const uid = req.query.uid;
   if (!uid) return res.status(400).end('uid missing');
@@ -80,9 +79,13 @@ app.get('/events', (req, res) => {
   });
 });
 
-// serve static (se usar build React)
+// serve static (build React)
 app.use(express.static(path.join(__dirname, 'public')));
-app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+
+// CORREÇÃO: usar '/*' (ou /.*/ ) em vez de '*' para evitar erro path-to-regexp
+app.get('/*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, ()=> console.log('Server listening on', PORT));
