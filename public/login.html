@@ -3,14 +3,15 @@
 <head>
   <meta charset="utf-8">
   <title>Login</title>
-  <style>body{font-family:Arial;display:flex;align-items:center;justify-content:center;height:100vh}form{width:260px}</style>
+  <style>body{font-family:Arial;display:flex;align-items:center;justify-content:center;height:100vh}form{width:300px}</style>
 </head>
 <body>
-  <form method="POST" action="/login" id="loginForm">
+  <form id="loginForm">
     <h3>Login</h3>
-    <input name="email" placeholder="email" required style="width:100%"><br><br>
-    <input name="senha" placeholder="senha" type="password" required style="width:100%"><br><br>
+    <input id="email" name="email" placeholder="email" required style="width:100%"><br><br>
+    <input id="senha" name="senha" placeholder="senha" type="password" required style="width:100%"><br><br>
     <button style="width:100%">Entrar</button>
+    <p id="err" style="color:red;margin-top:8px"></p>
   </form>
 
   <script src="/static/login.js"></script>
