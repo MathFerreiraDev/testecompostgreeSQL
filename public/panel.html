@@ -3,19 +3,28 @@
 <head>
   <meta charset="utf-8">
   <title>Painel</title>
-  <style>body{font-family:Arial;padding:20px;max-width:720px;margin:auto} .box{background:#f7f7f7;padding:12px;border-radius:6px}</style>
+  <style>
+    body{font-family:Arial;padding:20px;max-width:720px;margin:auto}
+    .box{background:#f7f7f7;padding:12px;border-radius:6px}
+    .label{font-weight:600}
+  </style>
 </head>
 <body>
-  <h2 style="display: flex;">Bem-vindo - <p id="user"></p></h2>
-  <div class="box">
-    <div>ÚLTIMO REGISTRO:</div>
-    <h3 style="display: flex;">Nível: <p id="nivel">--</p></h3>
-    <h3 style="display: flex;">Temperatura: <p id="temperatura">--</p></h3>
-    <h3 style="display: flex;">pH: <p id="ph">--</p></h2>
-    <h3 style="display: flex;">Cloro: <p id="cloro">--</p></h3>
-  </div>
+  <header>
+    <h2>Bem-vindo — <span id="user">--</span></h2>
+  </header>
 
-  <p><a href="/" id="logout">Sair</a></p>
+  <main>
+    <div class="box">
+      <div class="label">ÚLTIMO REGISTRO:</div>
+      <h3>Nível: <span id="nivel">--</span></h3>
+      <h3>Temperatura: <span id="temperatura">--</span></h3>
+      <h3>pH: <span id="ph">--</span></h3>
+      <h3>Cloro: <span id="cloro">--</span></h3>
+    </div>
+
+    <p><a href="/" id="logout">Sair</a></p>
+  </main>
 
   <script src="/static/panel.js"></script>
 </body>
